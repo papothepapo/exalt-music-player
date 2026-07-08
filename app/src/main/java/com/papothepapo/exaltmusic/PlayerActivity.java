@@ -7,19 +7,28 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Bundle;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
+import android.view.Gravity;
 import android.view.KeyEvent;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 public class PlayerActivity extends Activity {
     private final Handler handler = new Handler();
+    private ImageView art;
+    private ImageView stateIcon;
+    private ProgressBar seek;
     private TextView title;
-    private TextView artist;
-    private TextView progress;
+    private TextView meta;
+    private TextView time;
     private TextView speed;
+    private LinearLayout root;
     private int index;
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
         @Override
@@ -31,7 +40,7 @@ public class PlayerActivity extends Activity {
         @Override
         public void run() {
             refresh();
-            handler.postDelayed(this, 500);
+            handler.postDelayed(this, 450);
         }
     };
 
@@ -40,7 +49,8 @@ public class PlayerActivity extends Activity {
         super.onCreate(bundle);
         index = getIntent().getIntExtra("index", PlaybackService.currentIndex());
         buildUi();
-        if (bundle == null && index >= 0) {
+        boolean autoplay = getIntent().getBooleanExtra("autoplay", bundle == null && index >= 0 && index != PlaybackService.currentIndex());
+        if (autoplay && index >= 0) {
             startService(command(PlaybackService.ACTION_PLAY_INDEX).putExtra("index", index));
         }
     }
@@ -50,26 +60,49 @@ public class PlayerActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         index = intent.getIntExtra("index", PlaybackService.currentIndex());
+        if (intent.getBooleanExtra("autoplay", false) && index >= 0) {
+            startService(command(PlaybackService.ACTION_PLAY_INDEX).putExtra("index", index));
+        }
         refresh();
     }
 
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
+        root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Ui.BG);
-        root.setPadding(8, 6, 8, 6);
+        root.setPadding(10, 8, 10, 8);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        title = Ui.text(this, "", 4, Ui.ACCENT);
-        artist = Ui.text(this, "", 0, Ui.TEXT);
-        progress = Ui.text(this, "", 1, Ui.TEXT);
-        speed = Ui.text(this, "", -1, Ui.MUTED);
-        TextView footer = Ui.text(this, "Center: play/pause   Menu: speed", -2, Ui.MUTED);
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        top.addView(art, new LinearLayout.LayoutParams(82, 82));
 
-        root.addView(title, new LinearLayout.LayoutParams(-1, 60));
-        root.addView(artist, new LinearLayout.LayoutParams(-1, 38));
-        root.addView(progress, new LinearLayout.LayoutParams(-1, 40));
-        root.addView(speed, new LinearLayout.LayoutParams(-1, 34));
-        root.addView(footer, new LinearLayout.LayoutParams(-1, 28));
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setPadding(10, 0, 0, 0);
+        title = Ui.label(this, "", 2, Ui.textColor(this), Typeface.BOLD);
+        meta = Ui.label(this, "", -2, Ui.muted(this), Typeface.NORMAL);
+        texts.addView(title, new LinearLayout.LayoutParams(-1, 32));
+        texts.addView(meta, new LinearLayout.LayoutParams(-1, 24));
+        top.addView(texts, new LinearLayout.LayoutParams(0, 82, 1));
+        root.addView(top, new LinearLayout.LayoutParams(-1, 88));
+
+        stateIcon = new ImageView(this);
+        stateIcon.setPadding(0, 6, 0, 2);
+        root.addView(stateIcon, new LinearLayout.LayoutParams(46, 46));
+
+        seek = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        seek.setMax(1000);
+        root.addView(seek, new LinearLayout.LayoutParams(-1, 20));
+
+        time = Ui.label(this, "", -1, Ui.textColor(this), Typeface.NORMAL);
+        time.setGravity(Gravity.CENTER);
+        speed = Ui.label(this, "", -2, Ui.muted(this), Typeface.NORMAL);
+        speed.setGravity(Gravity.CENTER);
+        root.addView(time, new LinearLayout.LayoutParams(-1, 28));
+        root.addView(speed, new LinearLayout.LayoutParams(-1, 24));
         setContentView(root);
         refresh();
     }
@@ -106,16 +139,28 @@ public class PlayerActivity extends Activity {
         Track track = PlaybackQueue.get(index);
         if (track == null) {
             title.setText("No track");
-            artist.setText("");
-            progress.setText("");
+            meta.setText("");
+            time.setText("");
             speed.setText("");
+            seek.setProgress(0);
+            stateIcon.setImageResource(android.R.drawable.ic_media_pause);
+            root.setBackgroundColor(Ui.bg(this));
             return;
         }
+        int artColor = AlbumArtCache.color(this, track);
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Ui.blend(artColor, Ui.bg(this), 0.25f), Ui.bg(this)});
+        root.setBackground(background);
+        art.setImageBitmap(AlbumArtCache.get(this, track, 82));
         title.setText(track.title);
-        artist.setText(track.artist + " / " + track.album);
-        progress.setText((PlaybackService.isPlaying() ? "Playing  " : "Paused  ")
-                + Ui.mmss(PlaybackService.positionMs()) + " / " + Ui.mmss(PlaybackService.durationMs()));
-        speed.setText("Speed " + PlaybackService.currentSpeed(this) + "x");
+        meta.setText(track.artist + " / " + track.album);
+        int position = PlaybackService.positionMs();
+        int duration = Math.max(1, PlaybackService.durationMs());
+        seek.setProgress(Math.max(0, Math.min(1000, position * 1000 / duration)));
+        time.setText(Ui.mmss(position) + " / " + Ui.mmss(duration));
+        speed.setText(PlaybackService.currentSpeed(this) + "x");
+        stateIcon.setImageResource(PlaybackService.isPlaying() ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
     }
 
     @Override
@@ -136,8 +181,8 @@ public class PlayerActivity extends Activity {
             showMenu();
             return true;
         }
-        if (keyCode == KeyEvent.KEYCODE_SOFT_LEFT) {
-            startActivity(new Intent(this, SettingsActivity.class));
+        if (keyCode == KeyEvent.KEYCODE_SOFT_LEFT || keyCode == KeyEvent.KEYCODE_BACK) {
+            finish();
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -151,7 +196,7 @@ public class PlayerActivity extends Activity {
             return;
         }
         int base = forward ? AppPrefs.skipForward(this) : AppPrefs.skipBack(this);
-        int multiplier = repeatCount < 4 ? 1 : Math.min(8, 1 + repeatCount / 3);
+        int multiplier = Math.min(12, 1 + repeatCount);
         int delta = base * multiplier * 1000;
         startService(command(PlaybackService.ACTION_SEEK).putExtra("delta", forward ? delta : -delta));
     }
@@ -181,13 +226,6 @@ public class PlayerActivity extends Activity {
                     }
                 })
                 .create();
-        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override
-            public void onShow(DialogInterface dialogInterface) {
-                AlertDialog alert = (AlertDialog) dialogInterface;
-                alert.getListView().setTextDirection(android.view.View.TEXT_DIRECTION_ANY_RTL);
-            }
-        });
         dialog.show();
     }
 }

@@ -2,13 +2,13 @@ package com.papothepapo.exaltmusic;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,13 +33,12 @@ public class TrackListActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Ui.BG);
-        root.addView(Ui.text(this, Track.clean(label, "Tracks"), 2, Ui.ACCENT), new LinearLayout.LayoutParams(-1, 42));
+        root.setBackgroundColor(Ui.bg(this));
+        root.addView(Ui.label(this, Track.clean(label, "Tracks"), 2, Ui.accent(this), Typeface.BOLD), new LinearLayout.LayoutParams(-1, 38));
 
         listView = new ListView(this);
         Ui.tuneList(this, listView);
         root.addView(listView, new LinearLayout.LayoutParams(-1, 0, 1));
-        root.addView(Ui.text(this, "Center: play   Hold: edit track", -2, Ui.MUTED), new LinearLayout.LayoutParams(-1, 28));
         setContentView(root);
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -59,12 +58,8 @@ public class TrackListActivity extends Activity {
 
     private void loadTracks() {
         tracks = new MusicRepository(this).tracksFor(type, key);
-        List<String> rows = new ArrayList<>();
-        for (Track track : tracks) {
-            rows.add(track.title + " - " + track.artist);
-        }
-        listView.setAdapter(Ui.adapter(this, rows));
-        if (!rows.isEmpty()) {
+        listView.setAdapter(new TrackAdapter(this, tracks));
+        if (!tracks.isEmpty()) {
             listView.setSelection(0);
         }
     }
@@ -76,7 +71,9 @@ public class TrackListActivity extends Activity {
         PlaybackQueue.set(tracks);
         Intent intent = new Intent(this, PlayerActivity.class);
         intent.putExtra("index", position);
+        intent.putExtra("autoplay", true);
         startActivity(intent);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
     }
 
     private void edit(int position) {
@@ -93,16 +90,24 @@ public class TrackListActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (Ui.moveList(listView, keyCode, event.getRepeatCount())) {
+            return true;
+        }
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             play(listView.getSelectedItemPosition());
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_SOFT_LEFT) {
             finish();
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_SOFT_RIGHT) {
-            startActivity(new Intent(this, SettingsActivity.class));
+            if (Ui.hasNowPlaying()) {
+                Ui.openNowPlaying(this);
+            } else {
+                startActivity(new Intent(this, SettingsActivity.class));
+            }
             return true;
         }
         return super.onKeyDown(keyCode, event);

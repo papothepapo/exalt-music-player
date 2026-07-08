@@ -233,7 +233,8 @@ public class PlaybackService extends Service {
 
         Intent openIntent = new Intent(this, PlayerActivity.class);
         openIntent.putExtra("index", index);
-        openIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        openIntent.putExtra("autoplay", false);
+        openIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent openPending = PendingIntent.getActivity(this, 11, openIntent, pendingFlags());
 
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -249,7 +250,8 @@ public class PlaybackService extends Service {
     }
 
     private int pendingFlags() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? flags | PendingIntent.FLAG_IMMUTABLE : flags;
     }
 
     private void createChannel() {

@@ -1,6 +1,7 @@
 package com.papothepapo.exaltmusic;
 
 import android.app.Activity;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.widget.EditText;
@@ -34,9 +35,9 @@ public class EditTagsActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Ui.BG);
+        root.setBackgroundColor(Ui.bg(this));
         root.setPadding(8, 4, 8, 4);
-        root.addView(Ui.text(this, bulk ? "Edit Group Tags" : "Edit Track Tags", 2, Ui.ACCENT), new LinearLayout.LayoutParams(-1, 36));
+        root.addView(Ui.label(this, bulk ? "Edit Tags" : "Edit Track", 2, Ui.accent(this), Typeface.BOLD), new LinearLayout.LayoutParams(-1, 36));
 
         if (!bulk) {
             titleField = field("Title");
@@ -49,7 +50,7 @@ public class EditTagsActivity extends Activity {
         root.addView(albumField, new LinearLayout.LayoutParams(-1, 36));
         root.addView(albumArtistField, new LinearLayout.LayoutParams(-1, 36));
 
-        TextView footer = Ui.text(this, "Right/Menu: save   Left: cancel", -2, Ui.MUTED);
+        TextView footer = Ui.text(this, "Menu saves", -2, Ui.muted(this));
         root.addView(footer, new LinearLayout.LayoutParams(-1, 28));
         setContentView(root);
     }
@@ -58,8 +59,8 @@ public class EditTagsActivity extends Activity {
         EditText editText = new EditText(this);
         editText.setHint(hint);
         editText.setSingleLine(true);
-        editText.setTextColor(Ui.TEXT);
-        editText.setHintTextColor(Ui.MUTED);
+        editText.setTextColor(Ui.textColor(this));
+        editText.setHintTextColor(Ui.muted(this));
         editText.setTextSize(AppPrefs.fontSize(this));
         editText.setTypeface(AppPrefs.typeface(this));
         editText.setTextDirection(android.view.View.TEXT_DIRECTION_ANY_RTL);
@@ -82,7 +83,11 @@ public class EditTagsActivity extends Activity {
     }
 
     private List<Track> tracks() {
-        List<Track> source = new MusicRepository(this).tracksFor(type, key);
+        MusicRepository repo = new MusicRepository(this);
+        List<Track> source = MusicRepository.GROUP_FOLDER.equals(type) && bulk ? repo.tracksUnderFolder(key) : repo.tracksFor(type, key);
+        if (MusicRepository.GROUP_FOLDER.equals(type) && !bulk) {
+            source = repo.tracksInFolder(key);
+        }
         if (bulk) {
             return source;
         }

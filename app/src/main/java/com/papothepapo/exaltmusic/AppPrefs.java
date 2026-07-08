@@ -10,6 +10,7 @@ public final class AppPrefs {
     private static final String SKIP_BACK = "skip_back";
     private static final String FONT_SIZE = "font_size";
     private static final String FONT_NAME = "font_name";
+    private static final String THEME_NAME = "theme_name";
     private static final String SPEED = "speed";
 
     private AppPrefs() {
@@ -32,7 +33,11 @@ public final class AppPrefs {
     }
 
     public static String fontName(Context context) {
-        return prefs(context).getString(FONT_NAME, "sans");
+        return prefs(context).getString(FONT_NAME, "sans-serif");
+    }
+
+    public static String themeName(Context context) {
+        return prefs(context).getString(THEME_NAME, "charcoal");
     }
 
     public static float speed(Context context) {
@@ -55,6 +60,10 @@ public final class AppPrefs {
         prefs(context).edit().putString(FONT_NAME, value).apply();
     }
 
+    public static void setThemeName(Context context, String value) {
+        prefs(context).edit().putString(THEME_NAME, value).apply();
+    }
+
     public static void setSpeed(Context context, float value) {
         prefs(context).edit().putFloat(SPEED, value).apply();
     }
@@ -67,6 +76,6 @@ public final class AppPrefs {
         if ("monospace".equals(name)) {
             return Typeface.MONOSPACE;
         }
-        return Typeface.SANS_SERIF;
+        return Typeface.create(name, Typeface.NORMAL);
     }
 }

@@ -9,8 +9,10 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".SettingsActivity" />
+        <activity android:name=".HelpActivity" />
         <activity android:name=".EditTagsActivity" />
-        <activity android:name=".PlayerActivity" />
+        <activity android:name=".PlayerActivity" android:launchMode="singleTop" />
+        <activity android:name=".FolderActivity" />
         <activity android:name=".TrackListActivity" />
         <activity
             android:name=".MainActivity"
